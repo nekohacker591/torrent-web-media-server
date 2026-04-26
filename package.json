@@ -1,0 +1,33 @@
+{
+  "name": "master-vault-streamer",
+  "version": "1.0.0",
+  "description": "Standalone High-Speed Media Vault",
+  "main": "start.js",
+  "type": "module",
+  "scripts": {
+    "start": "node start.js",
+    "build": "esbuild start.js --bundle --platform=node --outfile=vault-core.cjs --format=cjs --external:express --external:socket.io --external:fs-extra && pkg . --targets node18-win-x64 --out-path dist --public"
+  },
+  "bin": "vault-core.cjs",
+  "pkg": {
+    "assets": [
+      "public/**/*"
+    ]
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "axios": "^1.6.2",
+    "express": "^5.0.0",
+    "express-http-proxy": "^2.0.0",
+    "form-data": "^4.0.0",
+    "fs-extra": "^11.2.0",
+    "parse-torrent": "^9.1.5",
+    "socket.io": "^4.7.2",
+    "tar": "^6.2.0",
+    "torrent-stream": "^1.2.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "pkg": "^5.8.1"
+  }
+}

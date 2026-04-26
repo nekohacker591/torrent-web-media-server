@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vault OS - Complete Archive</title>
+    <!-- Use local fonts or standard system stack to avoid "Corrupted Content" network errors -->
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Helvetica, sans-serif; }
+    </style>
+    
+     <script src="vue.global.js"></script>
+    <script src="socket.io.min.js"></script>
+    <script src="lucide.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" v-cloak>
+        
+        <!-- Global View Toggle -->
+        <div class="view-toggle">
+            <button @click="currentView = 'jriver'" :class="{active: currentView === 'jriver'}"><i data-lucide="music"></i> JRiver Media</button>
+            <button @click="currentView = 'explorer'" :class="{active: currentView === 'explorer'}"><i data-lucide="folder-tree"></i> Mock Explorer</button>
+        </div>
+
+        <!-- ================= JRIVER VIEW ================= -->
+        <div v-show="currentView === 'jriver'" class="jr-app">
+            <div class="jr-title-bar">
+                <div class="jr-menu"><span>File</span><span>Edit</span><span>View</span><span>Player</span><span>Tools</span><span>Help</span></div>
+                <div class="jr-title">JRiver Media Center 35</div>
+                <div class="jr-search-container"><input type="text" v-model="searchQuery" placeholder="Search"><span class="jr-search-drop">▼</span></div>
+            </div>
+
+            <div class="jr-player-bar">
+                <div class="jr-transport">
+                    <button @click="seek(-10)" class="jr-btn"><svg viewBox="0 0 24 24"><path d="M11 19V5L2 12l9 7zm2-14v14l9-7-9-7z"/></svg></button>
+                    <button @click="togglePlay" class="jr-btn"><svg v-if="!isPlaying" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg v-else viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></button>
+                    <button @click="stop" class="jr-btn"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+                    <button @click="seek(10)" class="jr-btn"><svg viewBox="0 0 24 24"><path d="M4 19v-14l9 7-9 7zm10-14v14l9-7-9-7z"/></svg></button>
+                </div>
+                <div class="jr-volume"><input type="range" min="0" max="1" step="0.01" v-model="volume" class="jr-slider vol-slider"></div>
+                <div class="jr-scrubber">
+                    <span class="time">{{ formatTime(currentTime) }}</span>
+                    <input type="range" min="0" :max="duration || 100" v-model="currentTime" @change="scrub" class="jr-slider seek-slider">
+                    <span class="time">{{ formatTime(duration) }}</span>
+                </div>
+            </div>
+
+            <div class="jr-workspace">
+                <aside class="jr-tree">
+                    <div class="tree-root">
+                        <div class="tree-item"><span class="arrow down">▼</span> Playing Now</div>
+                        <div class="tree-children"><div class="tree-item active-text">Playing from Main Library</div></div>
+                        <div class="tree-item"><span class="arrow down">▼</span> Audio</div>
+                        <div class="tree-children"><div class="tree-item active-bg"><div class="jr-icon-audio">♪</div> Files</div></div>
+                    </div>
+                </aside>
+                <main class="jr-main">
+                    <div class="jr-panes">
+                        <div class="jr-pane">
+                            <div class="pane-header">Location</div>
+                            <div class="pane-content">
+                                <div class="pane-row"><span class="arrow down">▼</span> Vault (T:)</div>
+                                <div class="pane-children">
+                                    <div class="pane-row" v-for="t in localTorrents" :key="t.name" :class="{selected: selectedTorrent === t.name}" @click="loadPack(t)">{{ t.name }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="jr-grid-wrapper">
+                        <table class="jr-grid">
+                            <thead>
+                                <tr>
+                                    <th style="width:250px;">Name</th><th style="width:150px;">Artist</th><th style="width:150px;">Album</th>
+                                    <th style="width:60px;">Duration</th><th style="width:60px;">Bitrate</th><th style="width:80px;">File Type</th>
+                                    <th>Filename</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(file, index) in filteredFiles" :key="index" :class="{ playing: activeFile && activeFile.name === file.name }" @dblclick="interact(file)">
+                                    <td>{{ file.meta.name }}</td><td>{{ file.meta.artist }}</td><td>{{ file.meta.album }}</td>
+                                    <td style="text-align:right;">{{ file.meta.duration }}</td><td style="text-align:right;">{{ file.meta.bitrate }}</td>
+                                    <td>{{ file.meta.type.toLowerCase() }}</td>
+                                    <td class="filename-cell">T:\[Vault]\{{ file.name.replace(/\//g, '\\') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- ================= EXPLORER VIEW ================= -->
+        <div v-show="currentView === 'explorer'" class="workspace-explorer">
+            <div class="win-titlebar">
+                <div class="tabs"><span class="blue-tab">File</span><span class="active">Home</span><span>Share</span><span>View</span></div>
+                <div class="ribbon-toggle" @click="ribbonExpanded = !ribbonExpanded"><i :data-lucide="ribbonExpanded ? 'chevron-up' : 'chevron-down'"></i></div>
+            </div>
+            <div class="win-ribbon" v-show="ribbonExpanded">
+                <div class="ribbon-group">
+                    <div class="ribbon-btn large"><i data-lucide="pin" class="gray"></i><span>Pin to Quick</span></div>
+                    <div class="ribbon-btn large"><i data-lucide="copy" class="blue"></i><span>Copy</span></div>
+                    <div class="ribbon-btn large"><i data-lucide="clipboard-paste" class="yellow"></i><span>Paste</span></div>
+                </div>
+            </div>
+            <div class="win-address-bar">
+                <div class="nav-arrows"><i data-lucide="arrow-left" @click="goUp()"></i><i data-lucide="arrow-up" @click="goUp()"></i></div>
+                <div class="address-input"><i data-lucide="monitor"></i> <span class="crumb">> Vault (T:)</span> <span v-if="selectedTorrent" class="crumb">> {{ selectedTorrent }}</span><span v-for="(crumb, idx) in explorerBreadcrumbs" :key="idx" class="crumb">> {{ crumb }}</span></div>
+                <div class="search-input"><input type="text" v-model="searchQuery" placeholder="Search..."><i data-lucide="search"></i></div>
+            </div>
+            <div class="win-workspace">
+                <aside class="win-sidebar">
+                    <div class="win-node active"><i data-lucide="hard-drive" class="green"></i> Vault (T:)</div>
+                    <div class="win-children">
+                        <div class="win-node" v-for="t in localTorrents" :class="{selected: selectedTorrent === t.name}" @click="loadPack(t)"><i data-lucide="folder" class="yellow"></i> {{ t.name }}</div>
+                    </div>
+                </aside>
+                <main class="win-content">
+                    <table class="win-grid">
+                        <thead><tr><th>Name</th><th>Date modified</th><th>Type</th><th>Size</th></tr></thead>
+                        <tbody>
+                            <tr v-if="appLoading"><td colspan="4" class="exec-loading"><i data-lucide="loader-2" class="spin"></i> {{ loadingMessage }}</td></tr>
+                            <tr v-if="currentDir && !searchQuery" @dblclick="goUp()" class="up-row"><td colspan="4">...</td></tr>
+                            <tr v-for="(item, index) in explorerItems" :key="index" @dblclick="openExplorerItem(item)">
+                                <template v-if="item.isFolder">
+                                    <td><i data-lucide="folder" class="yellow folder-icon"></i> {{ item.name }}</td><td>{{ item.fakeDate }}</td><td>File folder</td><td></td>
+                                </template>
+                                <template v-else>
+                                    <td><i :data-lucide="item.file.meta.winIcon" :class="item.file.meta.winColor"></i> {{ item.file.meta.name }}.{{ item.file.meta.type.toLowerCase() }}</td><td>{{ item.file.meta.fakeDateWin }}</td><td>{{ item.file.meta.winTypeDesc }}</td><td>{{ item.file.meta.kbSize }} KB</td>
+                                </template>
+                            </tr>
+                        </tbody>
+                    </table>
+                </main>
+            </div>
+        </div>
+
+        <!-- VIDEO MODAL -->
+        <div v-show="showVideoModal" class="video-modal-overlay" @click.self="closeVideo">
+            <div class="video-modal-content">
+                <div class="video-header"><span>{{ activeFile?.meta.name }}</span><button @click="closeVideo"><i data-lucide="x"></i></button></div>
+                <video id="video-player" playsinline controls></video>
+            </div>
+        </div>
+
+        <audio id="core-audio" style="display:none;"></audio>
+    </div>
+     <script src="plyr.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

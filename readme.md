@@ -3,7 +3,7 @@ VAULT (Master Vault Streamer)
 A blunt, uncompromising, high-speed BitTorrent streaming engine built for true
 data hoarders, audiophiles, and cultured degenerates.
 
-Forget bloated, "safe-space" web apps and slow WebRTC browser clients. Vault OS
+Forget bloated, "safe-space" web apps and slow WebRTC browser clients. Vault
 uses raw TCP/UDP torrenting to stream massive archives (4.9TB+ collections, 400+
 CD packs, high-res anime MKVs) directly to your screen with zero latency. It
 includes real-time audiophile transcoding, executable remote-running, and a

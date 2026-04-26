@@ -113,6 +113,6 @@ remnants of older, weaker builds. You can safely delete them:
   - client.js (Old qBittorrent API connector)
   - qbitClient.js (Old qBittorrent API connector)
   - index.js (Dead entry point)
-  - start.bat (Redundant Windows batch file)
+  
 
 
